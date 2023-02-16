@@ -170,6 +170,7 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode="hooks",
+        noise_multiplicity: int = 1,
     ) -> DPOptimizer:
         if isinstance(optimizer, DPOptimizer):
             optimizer = optimizer.original_optimizer
@@ -195,6 +196,7 @@ class PrivacyEngine:
             generator=generator,
             secure_mode=self.secure_mode,
             ew_compatibility_mode=_is_ew_compatibility_check_required(grad_sample_mode),
+            noise_multiplicity=noise_multiplicity,
         )
 
     def _prepare_data_loader(
@@ -335,6 +337,7 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
+        noise_multiplicity: int = 1,
     ) -> Tuple[GradSampleModule, DPOptimizer, DataLoader]:
         """
         Add privacy-related responsibilites to the main PyTorch training objects:
@@ -398,21 +401,6 @@ class PrivacyEngine:
         if noise_generator and self.secure_mode:
             raise ValueError("Passing seed is prohibited in secure mode")
 
-        # compare module parameter with optimizer parameters
-        if not all(
-            torch.eq(i, j).all()
-            for i, j in zip(
-                list(module.parameters()),
-                sum(
-                    [param_group["params"] for param_group in optimizer.param_groups],
-                    [],
-                ),
-            )
-        ):
-            raise ValueError(
-                "Module parameters are different than optimizer Parameters"
-            )
-
         distributed = isinstance(module, (DPDDP, DDP))
 
         module = self._prepare_model(
@@ -446,6 +434,7 @@ class PrivacyEngine:
             distributed=distributed,
             clipping=clipping,
             grad_sample_mode=grad_sample_mode,
+            noise_multiplicity=noise_multiplicity,
         )
 
         optimizer.attach_step_hook(
@@ -468,6 +457,7 @@ class PrivacyEngine:
         loss_reduction: str = "mean",
         noise_generator=None,
         grad_sample_mode="hooks",
+        noise_multiplicity: int = 1,
         **kwargs,
     ):
         """
@@ -542,6 +532,7 @@ class PrivacyEngine:
             loss_reduction=loss_reduction,
             noise_generator=noise_generator,
             grad_sample_mode=grad_sample_mode,
+            noise_multiplicity=noise_multiplicity,
         )
 
     def get_epsilon(self, delta):

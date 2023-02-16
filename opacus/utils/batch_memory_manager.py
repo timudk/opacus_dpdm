@@ -39,6 +39,7 @@ class BatchSplittingSampler(Sampler[List[int]]):
         sampler: Sampler[List[int]],
         max_batch_size: int,
         optimizer: DPOptimizer,
+        n_splits: int,
     ):
         """
 
@@ -50,11 +51,12 @@ class BatchSplittingSampler(Sampler[List[int]]):
         self.sampler = sampler
         self.max_batch_size = max_batch_size
         self.optimizer = optimizer
+        self.n_splits = n_splits
 
     def __iter__(self):
         for batch_idxs in self.sampler:
             split_idxs = np.array_split(
-                batch_idxs, math.ceil(len(batch_idxs) / self.max_batch_size)
+                batch_idxs, math.ceil(len(batch_idxs) / self.max_batch_size) if self.n_splits is None else self.n_splits
             )
             split_idxs = [s.tolist() for s in split_idxs]
             for x in split_idxs[:-1]:
@@ -78,7 +80,7 @@ class BatchSplittingSampler(Sampler[List[int]]):
 
 
 def wrap_data_loader(
-    *, data_loader: DataLoader, max_batch_size: int, optimizer: DPOptimizer
+    *, data_loader: DataLoader, max_batch_size: int, optimizer: DPOptimizer, n_splits: int
 ):
     """
     Replaces batch_sampler in the input data loader with ``BatchSplittingSampler``
@@ -98,6 +100,7 @@ def wrap_data_loader(
             sampler=data_loader.batch_sampler,
             max_batch_size=max_batch_size,
             optimizer=optimizer,
+            n_splits=n_splits,
         ),
         num_workers=data_loader.num_workers,
         collate_fn=data_loader.collate_fn,
@@ -160,16 +163,19 @@ class BatchMemoryManager(object):
         data_loader: DataLoader,
         max_physical_batch_size: int,
         optimizer: DPOptimizer,
+        n_splits: int = None,
     ):
         self.data_loader = data_loader
         self.optimizer = optimizer
         self.max_physical_batch_size = max_physical_batch_size
+        self.n_splits = n_splits
 
     def __enter__(self):
         return wrap_data_loader(
             data_loader=self.data_loader,
             max_batch_size=self.max_physical_batch_size,
             optimizer=self.optimizer,
+            n_splits=self.n_splits,
         )
 
     def __exit__(self, type, value, traceback):

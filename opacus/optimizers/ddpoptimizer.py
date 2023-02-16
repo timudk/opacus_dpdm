@@ -39,6 +39,7 @@ class DistributedDPOptimizer(DPOptimizer):
         generator=None,
         secure_mode: bool = False,
         ew_compatibility_mode=False,
+        noise_multiplicity: int = 1,
     ):
         super().__init__(
             optimizer,
@@ -49,6 +50,7 @@ class DistributedDPOptimizer(DPOptimizer):
             generator=generator,
             secure_mode=secure_mode,
             ew_compatibility_mode=ew_compatibility_mode,
+            noise_multiplicity=noise_multiplicity,
         )
         self.rank = torch.distributed.get_rank()
         self.world_size = torch.distributed.get_world_size()
