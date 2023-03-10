@@ -27,31 +27,29 @@ from torch.utils.data.dataloader import _collate_fn_t, _worker_init_fn_t
 
 logger = logging.getLogger(__name__)
 
+class wrap_collate_with_empty(object):
+    def __init__(self, collate_fn: Optional[_collate_fn_t], sample_empty_shapes: Sequence):
+        """
+        Wraps given collate function to handle empty batches.
 
-def wrap_collate_with_empty(
-    collate_fn: Optional[_collate_fn_t], sample_empty_shapes: Sequence
-):
-    """
-    Wraps given collate function to handle empty batches.
+        Args:
+            collate_fn: collate function to wrap
+            sample_empty_shapes: expected shape for a batch of size 0. Input is a sequence -
+                one for each tensor in the dataset
 
-    Args:
-        collate_fn: collate function to wrap
-        sample_empty_shapes: expected shape for a batch of size 0. Input is a sequence -
-            one for each tensor in the dataset
+        Returns:
+            New collate function, which is equivalent to input ``collate_fn`` for non-empty
+            batches and outputs empty tensors with shapes from ``sample_empty_shapes`` if
+            the input batch is of size 0
+        """
+        self.collate_fn = collate_fn
+        self.sample_empty_shapes = sample_empty_shapes
 
-    Returns:
-        New collate function, which is equivalent to input ``collate_fn`` for non-empty
-        batches and outputs empty tensors with shapes from ``sample_empty_shapes`` if
-        the input batch is of size 0
-    """
-
-    def collate(batch):
+    def __call__(self, batch):
         if len(batch) > 0:
-            return collate_fn(batch)
+            return self.collate_fn(batch)
         else:
-            return [torch.zeros(x) for x in sample_empty_shapes]
-
-    return collate
+            return [torch.zeros(x) for x in self.sample_empty_shapes]
 
 
 def shape_safe(x: Any):
